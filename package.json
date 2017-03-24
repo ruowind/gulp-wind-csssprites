@@ -1,0 +1,21 @@
+{
+  "name": "gulp-csssprites",
+  "version": "0.0.1",
+  "description": "csssprite based on gulp，support repeat-x，repeat-x，background-position",
+  "main": "index.js",
+  "license": "MIT",
+  "author": "ruowind",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruowind/gulp-wind-csssprites"
+  },
+  "dependencies": {
+    "gulp-util": "^3.0.8",
+    "through2": "^2.0.3",
+    "node-images": "^1.5.5",
+    "lodash": "^4.17.4"
+  },
+  "devDependencies": {
+    "gulp": "^3.9.1"
+  }
+}
