@@ -1,25 +1,27 @@
-/**
- * Created by gengfeng on 2017/3/24.
- */
 'use strict';
 
 let through = require('through2'),
     gutil = require('gulp-util'),
-    path = require('path');
+    PluginError = gutil.PluginError,
+    // path = require('path'),
+    cssParser = require('./libs/cssParser');
 
-function main(config) {
-    let step1 = () => {
+const PLUGIN_NAME = 'gulp-wind-csssprites';
 
+function main() {
+    let step1 = function (file, enc, cb) {
+        if (file.isStream()) {
+            this.emit('error', new PluginError(PLUGIN_NAME, 'Streams are not supported!'));
+            return cb();
+        }
+        let fileString = String(file.contents);
+        let res=cssParser(fileString);
+        file.contents=new Buffer(res.content);
+        this.push(file);
+        cb();
     };
 
-    let step2 = () => {
-
-    };
-
-    return through.obj(step1, step2);
+    return through.obj(step1);
 }
 
 module.exports = main;
-
-
-

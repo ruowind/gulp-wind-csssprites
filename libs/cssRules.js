@@ -3,10 +3,11 @@
  */
 'use strict';
 
+let util = require('./util');
+
 //Object Rules
-let Rules = Object.derive(function (id, css) {
+function Rules(id, css) {
     let self = this,
-        _ = fis.util,
         __background_re = /(?:\/\*[\s\S]*?(?:\*\/|$))|\bbackground(?:-image)?:([\s\S]*?)(?:;|$)|background-position:([\s\S]*?)(?:;|$)|background-repeat:([\s\S]*?)(?:;|$)|background-size:([\s\S]*?)(?:;|$)/gi,
         __image_url_re = /url\s*\(\s*("(?:[^\\"\r\n\f]|\\[\s\S])*"|'(?:[^\\'\n\r\f]|\\[\s\S])*'|[^)}]+)\s*\)/i,
         __support_position_re = /(0|[+-]?(?:\d*\.|)\d+px|left|right)\s+(0|[+-]?(?:\d*\.|)\d+px|top)/i,
@@ -15,6 +16,7 @@ let Rules = Object.derive(function (id, css) {
         __sprites_re = /[?&]__sprite/i,
         __sprites_hook_ld = '<<<',
         __sprites_hook_rd = '>>>';
+
     //selectors
     self.id = id;
     //use image url
@@ -32,7 +34,7 @@ let Rules = Object.derive(function (id, css) {
     self._have_position = false;
 
     //获取spriter的配置
-    self._settings = fis.config.get('settings.spriter.csssprites');
+    // self._settings = fis.config.get('settings.spriter.csssprites');
     /**
      * get position
      * @param res
@@ -60,8 +62,8 @@ let Rules = Object.derive(function (id, css) {
                 //get the url of image
                 res = image.match(__image_url_re);
                 if (res && res[1]) {
-                    info = _.stringQuote(res[1]);
-                    info = _.query(info.rest);
+                    info = util.stringQuote(res[1]);
+                    info = util.queryUrl(info.rest);
                     self.image = info.origin.replace(__sprites_re, '');
                     if (info.query && __sprites_re.test(info.query)) {
                         self._is_sprites = true;
@@ -104,7 +106,9 @@ let Rules = Object.derive(function (id, css) {
             return __sprites_hook_ld + m + __sprites_hook_rd;
         }
     );
-}, {
+};
+
+Rules.prototype = {
     getId: function () {
         return this.id;
     },
@@ -148,15 +152,6 @@ let Rules = Object.derive(function (id, css) {
     havePosition: function () {
         return this._have_position;
     }
-});
-
-module.exports = Rules.factory();
-module.exports.wrap = function (id, css) {
-    if (typeof id === 'string') {
-        return new Rules(id, css);
-    } else if (id instanceof Rules) {
-        return id;
-    } else {
-        fis.log.error('unable to convert [' + (typeof id) + '] to [Rules] object.');
-    }
 };
+
+module.exports = Rules;
