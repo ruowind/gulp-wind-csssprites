@@ -106,7 +106,7 @@ function Rules(id, css) {
             return __sprites_hook_ld + m + __sprites_hook_rd;
         }
     );
-};
+}
 
 Rules.prototype = {
     getId: function () {

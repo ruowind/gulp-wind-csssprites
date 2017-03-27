@@ -119,4 +119,4 @@ GrowingPacker.prototype = {
 
 };
 
-module.exports = new GrowingPacker();
+module.exports = GrowingPacker;

@@ -1,13 +1,10 @@
 'use strict';
-let Image = require('images');
-let util = require('./util.js');
+let Image = require('images'),
+    path = require('path'),
+    util = require('./util'),
+    Packer = require('./pack');
 
-module.exports = function (file, index, list, images, ret, settings, opt) {
-    let gen = new Generator(file, index, list, images, ret, settings, opt);
-    return gen.css;
-};
-
-function Generator(file, index, list, images, ret, settings, opt) {
+function Generator(cssFile, cssRules, pipeLine, settings) {
 
     let default_settings = {
         'margin': 3,
@@ -18,7 +15,7 @@ function Generator(file, index, list, images, ret, settings, opt) {
     };
 
     util.map(default_settings, function (key, value) {
-        if (settings.hasOwnProperty(key)) {
+        if (settings[key]) {
             if ((typeof value) === 'number') {
                 settings[key] = parseFloat(settings[key]);
             }
@@ -36,22 +33,16 @@ function Generator(file, index, list, images, ret, settings, opt) {
     //设置宽高限制
     Image.setLimit(settings.width_limit, settings.height_limit);
     let that = this;
-    this.file = file;
-    this.ret = ret;
+    this.cssFile = cssFile;
     this.settings = settings;
-    this.opt = opt;
     this.css = '';
-    this.images = images;
-    this.index = index;
+    this.pipeLine = pipeLine;
 
     let list_ = {};
     let scales = {};
 
-    function getImage(release) {
-        if (that.images.hasOwnProperty(release)) {
-            return that.images[release];
-        }
-        return false;
+    function getImage(imgUrl) {
+        return path.resolve(path.dirname(cssFile.path), imgUrl);
     }
 
     function insertToObject(o, key, elm) {
@@ -62,8 +53,8 @@ function Generator(file, index, list, images, ret, settings, opt) {
         }
     }
 
-    util.map(list, function (k, bg) {
-        let image_ = Image(getImage(bg.getImageUrl()).getContent());
+    util.map(cssRules, function (k, bg) {
+        let image_ = Image(getImage(bg.getImageUrl()));
         let direct = bg.getDirect();
 
         bg.image_ = image_;
@@ -106,30 +97,22 @@ Generator.prototype = {
         }
         return false;
     },
-    after: function (image, arr_selector, direct, scale, list) {
+    after: function (image, arr_selector, direct, scale) {
         let ext = '_' + direct + '.png';
         let size = image.size();
-        if (this.index) {
-            ext = '_' + this.index + ext;
-        }
 
         if (scale) {
             ext = '_' + scale + ext;
         }
 
-        let image_file = fis.file.wrap(this.file.realpathNoExt + ext);
-        image_file.setContent(image.encode('png'));
-        fis.compile(image_file);
-        this.file.addLink(image_file.subpath);
-        this.ret.pkg[this.file.subpathNoExt + ext] = image_file;
-
-        // 记录这些图片已经被打包到其他文件上了。
-        let images = this.images;
-        list.forEach(function (item) {
-            let image = images[item.image],
-                map = image.map = image.map || {};
-            map.cssspritePkg = image_file.getId();
-        });
+        let image_file = this.cssFile.clone();
+        let a = path.basename(image_file.path, '.css');
+        if (this.settings.imgPath) {
+            image_file.path = path.join(this.cssFile.cwd, this.settings.imgPath, a + ext);
+        } else {
+            image_file.path = image_file.path.substr(0, image_file.path.lastIndexOf('.')) + ext;
+        }
+        image_file.contents = image.encode('png');
 
         function unique(arr) {
             let map = {};
@@ -137,10 +120,12 @@ Generator.prototype = {
                 return map.hasOwnProperty(item) ? false : map[item] = true;
             });
         }
-        let imageUrl = util.getUrl(image_file, this.file, this.opt);
+
+        let imageUrl = path.relative(path.dirname(this.cssFile.path), image_file.path).replace(/\\/g, '/');
+
         if (this.settings.ie_bug_fix) {
             let MAX = this.settings.max_selectores || 30; //max 36
-            let arr_selector = unique(arr_selector.join(',').split(','));
+            arr_selector = unique(arr_selector.join(',').split(','));
             let len = arr_selector.length;
             let n = Math.ceil(len / MAX);
 
@@ -158,13 +143,10 @@ Generator.prototype = {
                 'background-image: url(' + imageUrl + ')}';
         }
 
-        //@TODO record
-        let report = {};
-        report[image_file.subpath] = unique(arr_selector.join(',').split(',')).length;
-        fis.emitter.emit('csssprite:record', report);
+        this.pipeLine.push(image_file);
 
     },
-    z_pack: require('./pack.js'),
+    z_pack: new Packer(),
     fill: function (list, direct) {
         if (!list || list.length === 0) {
             return;
@@ -249,7 +231,7 @@ Generator.prototype = {
             }
         }
 
-        this.after(image, cls, direct, null, list);
+        this.after(image, cls, direct, null);
     },
     zFill: function (list, scale) {
         let y_;
@@ -403,6 +385,11 @@ Generator.prototype = {
                 y += current.h;
             }
         }
-        this.after(image, cls, 'z', scale, list);
+        this.after(image, cls, 'z', scale);
     }
+};
+
+module.exports = function (cssFile, cssRules, pipeLine, settings) {
+    let gen = new Generator(cssFile, cssRules, pipeLine, settings);
+    return gen.css;
 };
